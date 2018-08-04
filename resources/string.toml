@@ -1,0 +1,47 @@
+# Basic strings
+str = "I'm a string. \"You can quote me\". Name\tJos\u00E9\nLocation\tSF."
+
+# Multi-line basic strings
+str11 = """
+Roses are red
+Violets are blue"""
+
+# On a Unix system, the above multi-line string will most likely be the same as:
+str12 = "Roses are red\nViolets are blue"
+
+# On a Windows system, it will most likely be equivalent to:
+str13 = "Roses are red\r\nViolets are blue"
+
+# The following strings are byte-for-byte equivalent:
+str21 = "The quick brown fox jumps over the lazy dog."
+
+str22 = """
+The quick brown \
+
+
+  fox jumps over \
+    the lazy dog."""
+
+str23 = """\
+       The quick brown \
+       fox jumps over \
+       the lazy dog.\
+       """
+
+# Literal strings
+
+# What you see is what you get.
+winpath  = 'C:\Users\nodejs\templates'
+winpath2 = '\\ServerX\admin$\system32\'
+quoted   = 'Tom "Dubs" Preston-Werner'
+regex    = '<\i\c*\s*>'
+
+# Multi-line literal strings
+
+regex2 = '''I [dw]on't need \d{2} apples'''
+lines  = '''
+The first newline is
+trimmed in raw strings.
+   All other whitespace
+   is preserved.
+'''
