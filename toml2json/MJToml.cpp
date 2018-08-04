@@ -185,7 +185,7 @@ namespace {
     }
     
     template <typename T>
-    static auto parse_table(MJTomlTable * root_table, T itr, T end) -> T {
+    static auto parse_table(MJTomlTable * table, T itr, T end, bool is_root = false) -> T {
         itr = skip_ws(itr, end);
         while (itr < end) {
             if (*itr == '#') {
@@ -256,32 +256,32 @@ namespace {
                             }
                         }
                         
-                        MJTomlTable * table = root_table;
+                        MJTomlTable * child_table = table;
                         auto value_key = dotted_keys.front();
                         for (auto key = dotted_keys.cbegin() + 1; key < dotted_keys.cend(); ++key) {
-                            if (table->count(value_key) != 0) {
-                                if ((*table)[value_key].type() == typeid(MJTomlTable)) {
-                                    table = std::any_cast<MJTomlTable>(&(*table)[value_key]);
+                            if (child_table->count(value_key) != 0) {
+                                if ((*child_table)[value_key].type() == typeid(MJTomlTable)) {
+                                    child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
                                 }
                                 else {
                                     throw std::invalid_argument("Invalid key");
                                 }
                             }
                             else {
-                                (*table)[value_key] = MJTomlTable();
-                                table = std::any_cast<MJTomlTable>(&(*table)[value_key]);
+                                (*child_table)[value_key] = MJTomlTable();
+                                child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
                             }
                             value_key = *key;
                         }
                         
-                        if (table->count(value_key) != 0) {
+                        if (child_table->count(value_key) != 0) {
                             throw std::invalid_argument("Duplicated key");
                         }
                         
                         std::any value;
                         itr = parse_value(&value, itr, end);
                         
-                        (*table)[value_key] = value;
+                        (*child_table)[value_key] = value;
                     }
                     else {
                         throw std::invalid_argument("ill-formed of toml");
@@ -299,7 +299,7 @@ namespace MoonJelly {
     
 MJTomlTable parse_toml(std::string_view str) {
     MJTomlTable root_table;
-    parse_table(&root_table, str.cbegin(), str.cend());
+    parse_table(&root_table, str.cbegin(), str.cend(), true);
     return root_table;
 }
 
