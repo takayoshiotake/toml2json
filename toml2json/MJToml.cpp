@@ -305,7 +305,7 @@ MJTomlTable parse_toml(std::string_view str) {
 
 std::string string_json(MJTomlTable const & toml, int indent) {
     std::stringstream ss;
-    std::string delimiter = "";
+    std::string joiner = "";
     
     std::string root_space;
     for (int i = 0; i < indent; ++i) {
@@ -315,7 +315,7 @@ std::string string_json(MJTomlTable const & toml, int indent) {
     
     ss << "{" << std::endl;
     for (auto itr = toml.begin(); itr != toml.end(); ++itr) {
-        ss << delimiter << space << "\"" << itr->first << "\": ";
+        ss << joiner << space << "\"" << itr->first << "\": ";
         if (itr->second.type() == typeid(MJTomlTable)) {
             ss << string_json(*std::any_cast<MJTomlTable>(&itr->second), indent + 1);
         }
@@ -327,7 +327,7 @@ std::string string_json(MJTomlTable const & toml, int indent) {
             auto bool_ptr = std::any_cast<MJTomlBoolean>(&itr->second);
             ss << (*bool_ptr ? "true" : "false");
         }
-        delimiter = ",\n";
+        joiner = ",\n";
     }
     ss << std::endl << root_space << "}";
     return ss.str();
