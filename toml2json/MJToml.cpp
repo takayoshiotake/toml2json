@@ -183,6 +183,54 @@ namespace {
         
         return itr;
     }
+
+    template <typename T>
+    static auto parse_keys(T itr, T end) -> std::vector<std::string> {
+        std::vector<std::string> dotted_keys;
+        while (itr < end) {
+            // Bare keys
+            static std::regex const re("^([A-Za-z0-9_-]+)");
+            std::smatch m;
+            if (std::regex_search(itr, end, m, re)) {
+                itr = m[1].second;
+                
+                auto key = std::string(m[1]);
+                MJTOML_LOG("key: %s\n", key.c_str());
+                dotted_keys.push_back(key);
+            }
+            else {
+                // Quoted keys
+                if (*itr == '"' || *itr == '\'') {
+                    std::any quoted_key;
+                    if (*itr == '"') {
+                        itr = parse_basic_string(&quoted_key, itr, end);
+                    }
+                    else if (*itr == '\'') {
+                        itr = parse_literal_string(&quoted_key, itr, end);
+                    }
+                    else {
+                        throw std::logic_error("Never reached");
+                    }
+                    auto key = *std::any_cast<std::string>(&quoted_key);
+                    MJTOML_LOG("key: %s\n", key.c_str());
+                    dotted_keys.push_back(key);
+                }
+                else {
+                    throw std::invalid_argument("ill-formed of keys");
+                }
+            }
+            
+            itr = skip_ws(itr, end);
+            if (itr < end && *itr == '.') {
+                ++itr;
+                itr = skip_ws(itr, end);
+            }
+            else if (itr != end) {
+                throw std::invalid_argument("ill-formed of keys");
+            }
+        }
+        return dotted_keys;
+    }
     
     template <typename T>
     static auto parse_table(MJTomlTable * table, T itr, T end, bool is_root = false) -> T {
@@ -211,50 +259,7 @@ namespace {
                         auto keys = std::string(m[1]);
                         MJTOML_LOG("keys: %s\n", keys.c_str());
                         
-                        auto keys_itr = keys.cbegin();
-                        auto keys_end = keys.cend();
-                        while (keys_itr < keys_end) {
-                            // Bare keys
-                            static std::regex const re("^([A-Za-z0-9_-]+)");
-                            std::smatch m;
-                            if (std::regex_search(keys_itr, keys_end, m, re)) {
-                                keys_itr = m[1].second;
-                                
-                                auto key = std::string(m[1]);
-                                MJTOML_LOG("key: %s\n", key.c_str());
-                                dotted_keys.push_back(key);
-                            }
-                            else {
-                                // Quoted keys
-                                if (*keys_itr == '"' || *keys_itr == '\'') {
-                                    std::any quoted_key;
-                                    if (*keys_itr == '"') {
-                                        keys_itr = parse_basic_string(&quoted_key, keys_itr, keys_end);
-                                    }
-                                    else if (*keys_itr == '\'') {
-                                        keys_itr = parse_literal_string(&quoted_key, keys_itr, keys_end);
-                                    }
-                                    else {
-                                        throw std::logic_error("Never reached");
-                                    }
-                                    auto key = *std::any_cast<std::string>(&quoted_key);
-                                    MJTOML_LOG("key: %s\n", key.c_str());
-                                    dotted_keys.push_back(key);
-                                }
-                                else {
-                                    throw std::invalid_argument("ill-formed of keys");
-                                }
-                            }
-
-                            keys_itr = skip_ws(keys_itr, keys_end);
-                            if (keys_itr < keys_end && *keys_itr == '.') {
-                                ++keys_itr;
-                                keys_itr = skip_ws(keys_itr, keys_end);
-                            }
-                            else if (keys_itr != keys_end) {
-                                throw std::invalid_argument("ill-formed of keys");
-                            }
-                        }
+                        dotted_keys = parse_keys(keys.cbegin(), keys.cend());
                         
                         MJTomlTable * child_table = table;
                         auto value_key = dotted_keys.front();
