@@ -57,7 +57,7 @@
 			isa = PBXGroup;
 			children = (
 				12E57A35210C94E2009A0732 /* toml2json */,
-				12E57A40210CCB86009A0732 /* resources */,
+				12E57A40210CCB86009A0732 /* testdata */,
 				12E57A34210C94E2009A0732 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -80,7 +80,7 @@
 			path = toml2json;
 			sourceTree = "<group>";
 		};
-		12E57A40210CCB86009A0732 /* resources */ = {
+		12E57A40210CCB86009A0732 /* testdata */ = {
 			isa = PBXGroup;
 			children = (
 				12E57A482116F1EA009A0732 /* comment.toml */,
@@ -88,7 +88,7 @@
 				12E57A41210CCBB5009A0732 /* string.toml */,
 				12E57A452116E54C009A0732 /* table.toml */,
 			);
-			path = resources;
+			path = testdata;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
