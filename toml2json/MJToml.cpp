@@ -206,19 +206,22 @@ namespace {
                 
                 // Table, TODO: Array of tables
                 if (type == -1) {
-                    // FIXME: If ']' appears in quoted keys, this may fail...
-                    static std::regex const re(R"(^\[[\t ]*(.*?)\])");
+                    // key_pattern = [A-Za-z0-9_-]+|\".*?[^\\]\"|'.+?'
+                    // space_and_dot = [\t ]+|\.
+                    // keys_pattern = (?:<key_pattern>|<space_and_dot>)+
+                    static std::regex const re(R"(^\[((?:[A-Za-z0-9_-]+|\".*?[^\\]\"|'.+?'|[\t ]+|\.)+)\])");
                     std::cmatch m;
                     
                     if (std::regex_search(itr, end, m, re)) {
                         if (!is_root) {
-                            // End the table
+                            // End the table, return to root table
                             return itr;
                         }
                         
                         itr = m[0].second;
                         
-                        auto keys = std::string(m[1]);
+                        auto keys_begin = skip_ws(m[1].first, m[1].second);
+                        auto keys = std::string(keys_begin, m[1].second);
                         MJTOML_LOG("keys: %s\n", keys.c_str());
                         
                         dotted_keys = parse_keys(keys.cbegin(), keys.cend());
