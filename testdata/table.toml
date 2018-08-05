@@ -2,11 +2,11 @@
 
 [table-1]
 key1 = "some string"
-# TODO: key2 = 123
+key2 = 123
 
 [table-2]
 key1 = "another string"
-# TODO: key2 = 456
+key2 = 456
 
 [dog."tater.man"]
 type.name = "pug"

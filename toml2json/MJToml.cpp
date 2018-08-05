@@ -140,6 +140,34 @@ namespace {
                     return m[0].second;
                 }
             }
+            {
+                // integer
+                static std::regex const re(R"(^(0x[A-Fa-f0-9_]+)|(0o[0-7]+)|(0b[01]+)|([+-]?[0-9_]+))");
+                std::cmatch m;
+                if (std::regex_search(itr, end, m, re)) {
+                    if (m[1].length() != 0) {
+                        auto integer = std::string(m[1]);
+                        MJTOML_LOG("hexadecimal: %s\n", integer.c_str());
+                        *value = std::stoll(std::regex_replace(integer, std::regex("_"), ""), 0, 16);
+                    }
+                    else if (m[2].length() != 0) {
+                        auto integer = std::string(m[2]);
+                        MJTOML_LOG("octal: %s\n", integer.c_str());
+                        *value = std::stoll(std::regex_replace(integer, std::regex("_"), ""), 0, 8);
+                    }
+                    else if (m[3].length() != 0) {
+                        auto integer = std::string(m[3]);
+                        MJTOML_LOG("binary: %s\n", integer.c_str());
+                        *value = std::stoll(std::regex_replace(integer, std::regex("_"), ""), 0, 2);
+                    }
+                    else if (m[4].length() != 0) {
+                        auto integer = std::string(m[4]);
+                        MJTOML_LOG("integer: %s\n", integer.c_str());
+                        *value = std::stoll(std::regex_replace(integer, std::regex("_"), ""));
+                    }
+                    return m[0].second;
+                }
+            }
             
             throw std::logic_error("not implemented");
         }
@@ -328,6 +356,10 @@ std::string string_json(MJTomlTable const & toml, int indent) {
         else if (itr->second.type() == typeid(MJTomlBoolean)) {
             auto bool_ptr = std::any_cast<MJTomlBoolean>(&itr->second);
             ss << (*bool_ptr ? "true" : "false");
+        }
+        else if (itr->second.type() == typeid(MJTomlInteger)) {
+            auto int_ptr = std::any_cast<MJTomlInteger>(&itr->second);
+            ss << *int_ptr;
         }
         joiner = ",\n";
     }
