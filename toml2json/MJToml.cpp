@@ -245,10 +245,31 @@ namespace {
             }
             else {
                 std::vector<std::string> dotted_keys;
-                // TODO: Table, Array of tables
+                int type = -1; // 0: Table, 1: Key/Value Pair
                 
+                // Table, TODO: Array of tables
+                if (type == -1) {
+                    // FIXME: If ']' appears in quoted keys, this may fail...
+                    static std::regex const re(R"(^\[[\t ]*(.*?)\])");
+                    std::cmatch m;
+                    
+                    if (std::regex_search(itr, end, m, re)) {
+                        if (!is_root) {
+                            // End the table
+                            return itr;
+                        }
+                        
+                        itr = m[0].second;
+                        
+                        auto keys = std::string(m[1]);
+                        MJTOML_LOG("keys: %s\n", keys.c_str());
+                        
+                        dotted_keys = parse_keys(keys.cbegin(), keys.cend());
+                        type = 0;
+                    }
+                }
                 // Dotted keys, includes Bare keys and Quoted keys
-                {
+                if (type == -1) {
                     static std::regex const re(R"(^(.*?)[\t ]*=[\t ]*)");
                     std::cmatch m;
                     
@@ -260,36 +281,52 @@ namespace {
                         MJTOML_LOG("keys: %s\n", keys.c_str());
                         
                         dotted_keys = parse_keys(keys.cbegin(), keys.cend());
-                        
-                        MJTomlTable * child_table = table;
-                        auto value_key = dotted_keys.front();
-                        for (auto key = dotted_keys.cbegin() + 1; key < dotted_keys.cend(); ++key) {
-                            if (child_table->count(value_key) != 0) {
-                                if ((*child_table)[value_key].type() == typeid(MJTomlTable)) {
-                                    child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
-                                }
-                                else {
-                                    throw std::invalid_argument("Invalid key");
-                                }
-                            }
-                            else {
-                                (*child_table)[value_key] = MJTomlTable();
+                        type = 1;
+                    }
+                }
+                
+                if (dotted_keys.empty() || type == -1) {
+                    throw std::invalid_argument("ill-formed of toml");
+                }
+                else {
+                    MJTomlTable * child_table = table;
+                    auto value_key = dotted_keys.front();
+                    for (auto key = dotted_keys.cbegin() + 1; key < dotted_keys.cend(); ++key) {
+                        if (child_table->count(value_key) != 0) {
+                            if ((*child_table)[value_key].type() == typeid(MJTomlTable)) {
                                 child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
                             }
-                            value_key = *key;
+                            else {
+                                throw std::invalid_argument("Invalid key");
+                            }
                         }
-                        
-                        if (child_table->count(value_key) != 0) {
-                            throw std::invalid_argument("Duplicated key");
+                        else {
+                            (*child_table)[value_key] = MJTomlTable();
+                            child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
                         }
+                        value_key = *key;
+                    }
+                    
+                    if (child_table->count(value_key) != 0) {
+                        throw std::invalid_argument("Duplicated key");
+                    }
+                    
+                    if (type == 0) {
+                        // Table
+                        (*child_table)[value_key] = MJTomlTable();
+                        child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
                         
+                        itr = parse_table(child_table, itr, end);
+                    }
+                    else if (type == 1) {
+                        // Key/Value Pair
                         std::any value;
                         itr = parse_value(&value, itr, end);
                         
                         (*child_table)[value_key] = value;
                     }
                     else {
-                        throw std::invalid_argument("ill-formed of toml");
+                        throw std::logic_error("Never reached");
                     }
                 }
             }

@@ -11,6 +11,7 @@
 		12E57A3F210C94FB009A0732 /* MJToml.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 12E57A3D210C94FB009A0732 /* MJToml.cpp */; };
 		12E57A42210CCBD6009A0732 /* string.toml in CopyFiles */ = {isa = PBXBuildFile; fileRef = 12E57A41210CCBB5009A0732 /* string.toml */; };
 		12E57A44210DB1CA009A0732 /* keys.toml in CopyFiles */ = {isa = PBXBuildFile; fileRef = 12E57A43210DB1C4009A0732 /* keys.toml */; };
+		12E57A472116E5B2009A0732 /* table.toml in CopyFiles */ = {isa = PBXBuildFile; fileRef = 12E57A452116E54C009A0732 /* table.toml */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -20,6 +21,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				12E57A472116E5B2009A0732 /* table.toml in CopyFiles */,
 				12E57A44210DB1CA009A0732 /* keys.toml in CopyFiles */,
 				12E57A42210CCBD6009A0732 /* string.toml in CopyFiles */,
 			);
@@ -34,6 +36,7 @@
 		12E57A3E210C94FB009A0732 /* MJToml.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = MJToml.hpp; sourceTree = "<group>"; };
 		12E57A41210CCBB5009A0732 /* string.toml */ = {isa = PBXFileReference; lastKnownFileType = text; path = string.toml; sourceTree = "<group>"; };
 		12E57A43210DB1C4009A0732 /* keys.toml */ = {isa = PBXFileReference; lastKnownFileType = text; path = keys.toml; sourceTree = "<group>"; };
+		12E57A452116E54C009A0732 /* table.toml */ = {isa = PBXFileReference; lastKnownFileType = text; path = table.toml; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +82,7 @@
 			children = (
 				12E57A43210DB1C4009A0732 /* keys.toml */,
 				12E57A41210CCBB5009A0732 /* string.toml */,
+				12E57A452116E54C009A0732 /* table.toml */,
 			);
 			path = resources;
 			sourceTree = "<group>";

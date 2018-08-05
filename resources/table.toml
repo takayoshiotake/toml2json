@@ -1,0 +1,17 @@
+[table]
+
+[table-1]
+key1 = "some string"
+# TODO: key2 = 123
+
+[table-2]
+key1 = "another string"
+# TODO: key2 = 456
+
+[dog."tater.man"]
+type.name = "pug"
+
+[a.b.c]            # this is best practice
+[ d.e.f ]          # same as [d.e.f]
+[ g .  h  . i ]    # same as [g.h.i]
+[ j . "ʞ" . 'l' ]  # same as [j."ʞ".'l']
