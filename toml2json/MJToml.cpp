@@ -45,62 +45,6 @@ namespace {
     }
     
     template <typename T>
-    static auto parse_basic_string(std::any * value, T itr, T end) -> T {
-        auto string_begin = ++itr;
-        while (itr <= end) {
-            if (itr == end) {
-                throw std::invalid_argument("ill-formed of basic strings");
-            }
-            
-            if (*itr == '\\') {
-                ++itr;
-                if (itr == end) {
-                    throw std::invalid_argument("ill-formed of basic strings");
-                }
-                ++itr;
-            }
-            else if (*itr == '"') {
-                break;
-            }
-            ++itr;
-        }
-        
-        // Trim
-        auto string = std::regex_replace(std::string(string_begin, itr), std::regex(R"(\\\r?\n[ \t\r\n]*)"), "");
-        MJTOML_LOG("string: %s\n", string.c_str());
-        *value = std::move(string);
-        
-        // Skip last "
-        ++itr;
-        return itr;
-    }
-    
-    template <typename T>
-    static auto parse_literal_string(std::any * value, T itr, T end) -> T {
-        auto string_begin = ++itr;
-        while (itr <= end) {
-            if (itr == end) {
-                throw std::invalid_argument("ill-formed of literal strings");
-            }
-            
-            if (*itr == '\'') {
-                break;
-            }
-            ++itr;
-        }
-        
-        // Escape
-        auto string = std::regex_replace(std::string(string_begin, itr), std::regex(R"(\\)"), "\\\\");
-        string = std::regex_replace(string, std::regex(R"(\")"), "\\\"");
-        MJTOML_LOG("string: %s\n", string.c_str());
-        *value = std::move(string);
-        
-        // Skip last '
-        ++itr;
-        return itr;
-    }
-    
-    template <typename T>
     static auto parse_value(std::any * value, T itr, T end) -> T {
         if (::strstr(itr, "\"\"\"") == itr) {
             // Multi-line basic strings
@@ -129,7 +73,16 @@ namespace {
         }
         else if (*itr == '"') {
             // Basic strings
-            itr = parse_basic_string(value, itr, end);
+            static std::regex const re(R"(^\"(.*?[^\\])?\")");
+            std::cmatch m;
+            if (!std::regex_search(itr, end, m, re)) {
+                throw std::invalid_argument("ill-formed of basic strings");
+            }
+            itr = m[0].second;
+            
+            auto string = std::string(m[1]);
+            MJTOML_LOG("string: %s\n", string.c_str());
+            *value = std::move(string);
         }
         else if (::strstr(itr, "'''") == itr) {
             // Multi-line literal strings
@@ -158,7 +111,17 @@ namespace {
         }
         else if (*itr == '\'') {
             // Literal strings
-            itr = parse_literal_string(value, itr, end);
+            static std::regex const re(R"(^'(.*?)')");
+            std::cmatch m;
+            if (!std::regex_search(itr, end, m, re)) {
+                throw std::invalid_argument("ill-formed of literal strings");
+            }
+            itr = m[0].second;
+            
+            auto string = std::regex_replace(std::string(m[1]), std::regex(R"(\\)"), "\\\\");
+            string = std::regex_replace(string, std::regex(R"(\")"), "\\\"");
+            MJTOML_LOG("string: %s\n", string.c_str());
+            *value = std::move(string);
         }
         else {
             {
@@ -188,36 +151,30 @@ namespace {
     static auto parse_keys(T itr, T end) -> std::vector<std::string> {
         std::vector<std::string> dotted_keys;
         while (itr < end) {
-            // Bare keys
-            static std::regex const re("^([A-Za-z0-9_-]+)");
+            // Bare keys, Quoted keys
+            static std::regex const re(R"(^([A-Za-z0-9_-]+)|\"(.*?[^\\])\"|'(.+?)'))");
             std::smatch m;
             if (std::regex_search(itr, end, m, re)) {
-                itr = m[1].second;
-                
-                auto key = std::string(m[1]);
-                MJTOML_LOG("key: %s\n", key.c_str());
-                dotted_keys.push_back(key);
-            }
-            else {
-                // Quoted keys
-                if (*itr == '"' || *itr == '\'') {
-                    std::any quoted_key;
-                    if (*itr == '"') {
-                        itr = parse_basic_string(&quoted_key, itr, end);
-                    }
-                    else if (*itr == '\'') {
-                        itr = parse_literal_string(&quoted_key, itr, end);
-                    }
-                    else {
-                        throw std::logic_error("Never reached");
-                    }
-                    auto key = *std::any_cast<std::string>(&quoted_key);
+                itr = m[0].second;
+                if (m[1].length() != 0) {
+                    auto key = std::string(m[1]);
                     MJTOML_LOG("key: %s\n", key.c_str());
                     dotted_keys.push_back(key);
                 }
-                else {
-                    throw std::invalid_argument("ill-formed of keys");
+                else if (m[2].length() != 0) {
+                    auto key = std::string(m[2]);
+                    MJTOML_LOG("key: %s\n", key.c_str());
+                    dotted_keys.push_back(key);
                 }
+                else if (m[3].length() != 0) {
+                    auto key = std::regex_replace(std::string(m[3]), std::regex(R"(\\)"), "\\\\");
+                    key = std::regex_replace(key, std::regex(R"(\")"), "\\\"");
+                    MJTOML_LOG("key: %s\n", key.c_str());
+                    dotted_keys.push_back(key);
+                }
+            }
+            else {
+                throw std::invalid_argument("ill-formed of keys");
             }
             
             itr = skip_ws(itr, end);
