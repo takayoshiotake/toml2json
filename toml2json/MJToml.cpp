@@ -153,11 +153,13 @@ namespace {
                     else if (m[2].length() != 0) {
                         auto integer = std::string(m[2]);
                         MJTOML_LOG("octal: %s\n", integer.c_str());
+                        // FIXME: This couldn't get expected result...
                         *value = std::stoll(std::regex_replace(integer, std::regex("_"), ""), 0, 8);
                     }
                     else if (m[3].length() != 0) {
                         auto integer = std::string(m[3]);
                         MJTOML_LOG("binary: %s\n", integer.c_str());
+                        // FIXME: This couldn't get expected result...
                         *value = std::stoll(std::regex_replace(integer, std::regex("_"), ""), 0, 2);
                     }
                     else if (m[4].length() != 0) {
