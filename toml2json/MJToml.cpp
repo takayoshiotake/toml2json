@@ -15,9 +15,12 @@
 #define MJTOML_LOG(fmt, ...)
 #endif
 
+#include <cmath>
 #include <cstring>
+#include <limits>
 #include <sstream>
 #include <regex>
+#include <iomanip>
 
 namespace {
     using namespace MoonJelly;
@@ -124,24 +127,61 @@ namespace {
             *value = std::move(string);
         }
         else {
+            // Boolean
             {
-                static std::regex const re(R"(^true[\t\r\n ])");
-                std::cmatch m;
-                if (std::regex_search(itr, end, m, re)) {
-                    *value = true;
-                    return m[0].second;
+                {
+                    static std::regex const re(R"(^true[\t\r\n ])");
+                    std::cmatch m;
+                    if (std::regex_search(itr, end, m, re)) {
+                        *value = true;
+                        return m[0].second;
+                    }
+                }
+                {
+                    static std::regex const re(R"(^false[\t\r\n ])");
+                    std::cmatch m;
+                    if (std::regex_search(itr, end, m, re)) {
+                        *value = false;
+                        return m[0].second;
+                    }
                 }
             }
             {
-                static std::regex const re(R"(^false[\t\r\n ])");
-                std::cmatch m;
-                if (std::regex_search(itr, end, m, re)) {
-                    *value = false;
-                    return m[0].second;
+                // Float
+                {
+                    static std::regex const re(R"(^([+-]?)inf[\t\r\n ])");
+                    std::cmatch m;
+                    if (std::regex_search(itr, end, m, re)) {
+                        *value = std::numeric_limits<double>::infinity() * (m[1].compare("-") == 0 ? -1 : 1);
+                        return m[0].second;
+                    }
+                }
+                {
+                    static std::regex const re(R"(^[+-]?nan[\t\r\n ])");
+                    std::cmatch m;
+                    if (std::regex_search(itr, end, m, re)) {
+                        *value = std::numeric_limits<double>::quiet_NaN();
+                        return m[0].second;
+                    }
+                }
+                {
+                    static std::regex const re(R"(^[+-]?[0-9_]+(?:\.[0-9_]+)?(?:[eE][+-]?[0-9]+)?)");
+                    std::cmatch m;
+                    if (std::regex_search(itr, end, m, re)) {
+                        auto flt = std::string(m[0]);
+                        MJTOML_LOG("float: %s\n", flt.c_str());
+                        
+                        auto flt_description = std::regex_replace(flt, std::regex("_"), "");
+                        flt_description = std::regex_replace(flt_description, std::regex(R"(^\+)"), "");
+                        auto flt_value = std::stod(flt_description);
+                        
+                        *value = MJTomlDescribedFloat{flt_value, flt_description};
+                        return m[0].second;
+                    }
                 }
             }
             {
-                // integer
+                // Integer
                 static std::regex const re(R"(^(0x[A-Fa-f0-9_]+)|(0o[0-7]+)|(0b[01]+)|([+-]?[0-9_]+))");
                 std::cmatch m;
                 if (std::regex_search(itr, end, m, re)) {
@@ -220,7 +260,7 @@ namespace {
     }
     
     template <typename T>
-    static auto parse_table(MJTomlTable * table, T itr, T end, bool is_root = false) -> T {
+    static auto parse_table(MJToml & toml, MJTomlTable * table, T itr, T end, bool is_root = false) -> T {
         itr = skip_ws(itr, end);
         while (itr < end) {
             if (*itr == '#') {
@@ -306,7 +346,7 @@ namespace {
                         (*child_table)[value_key] = MJTomlTable();
                         child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
                         
-                        itr = parse_table(child_table, itr, end);
+                        itr = parse_table(toml, child_table, itr, end);
                     }
                     else if (type == 1) {
                         // Key/Value Pair
@@ -325,48 +365,79 @@ namespace {
         }
         return itr;
     }
+    
+    
+    static auto string_json(MJTomlTable const & table, int indent, bool is_strict) -> std::string {
+        std::stringstream ss;
+        std::string joiner = "";
+        
+        std::string root_space;
+        for (int i = 0; i < indent; ++i) {
+            root_space += "  ";
+        }
+        std::string space = root_space + "  ";
+        
+        ss << "{" << std::endl;
+        for (auto itr = table.begin(); itr != table.end(); ++itr) {
+            ss << joiner << space << "\"" << itr->first << "\": ";
+            if (itr->second.type() == typeid(MJTomlTable)) {
+                ss << string_json(*std::any_cast<MJTomlTable>(&itr->second), indent + 1, is_strict);
+            }
+            else if (itr->second.type() == typeid(MJTomlString)) {
+                auto str_ptr = std::any_cast<MJTomlString>(&itr->second);
+                ss << "\"" << *str_ptr << "\"";
+            }
+            else if (itr->second.type() == typeid(MJTomlBoolean)) {
+                auto bool_ptr = std::any_cast<MJTomlBoolean>(&itr->second);
+                ss << (*bool_ptr ? "true" : "false");
+            }
+            else if (itr->second.type() == typeid(MJTomlInteger)) {
+                auto int_ptr = std::any_cast<MJTomlInteger>(&itr->second);
+                ss << *int_ptr;
+            }
+            else if (itr->second.type() == typeid(MJTomlFloat)) {
+                auto flt_ptr = std::any_cast<MJTomlFloat>(&itr->second);
+                if (std::isinf(*flt_ptr)) {
+                    if (is_strict) {
+                        ss << "\"" << (*flt_ptr < 0 ? "-" : "") << "Infinity" << "\"";
+                    }
+                    else {
+                        ss << (*flt_ptr < 0 ? "-" : "") << "Infinity";
+                    }
+                }
+                else if (std::isnan(*flt_ptr)) {
+                    if (is_strict) {
+                        ss << "\"NaN\"";
+                    }
+                    else {
+                        ss << "NaN";
+                    }
+                }
+                else {
+                    ss << std::scientific << std::setprecision(std::numeric_limits<double>::max_digits10) << *flt_ptr;
+                }
+            }
+            else if (itr->second.type() == typeid(MJTomlDescribedFloat)) {
+                auto flt_ptr = std::any_cast<MJTomlDescribedFloat>(&itr->second);
+                ss << flt_ptr->description;
+            }
+            joiner = ",\n";
+        }
+        ss << std::endl << root_space << "}";
+        return ss.str();
+    }
 }
 
 namespace MoonJelly {
     
-MJTomlTable parse_toml(std::string_view str) {
-    MJTomlTable root_table;
-    parse_table(&root_table, str.cbegin(), str.cend(), true);
-    return root_table;
+MJToml parse_toml(std::string_view str) {
+    MJToml toml;
+    ::parse_table(toml, &toml.table, str.cbegin(), str.cend(), true);
+    return toml;
 }
 
-std::string string_json(MJTomlTable const & toml, int indent) {
-    std::stringstream ss;
-    std::string joiner = "";
-    
-    std::string root_space;
-    for (int i = 0; i < indent; ++i) {
-        root_space += "  ";
-    }
-    std::string space = root_space + "  ";
-    
-    ss << "{" << std::endl;
-    for (auto itr = toml.begin(); itr != toml.end(); ++itr) {
-        ss << joiner << space << "\"" << itr->first << "\": ";
-        if (itr->second.type() == typeid(MJTomlTable)) {
-            ss << string_json(*std::any_cast<MJTomlTable>(&itr->second), indent + 1);
-        }
-        else if (itr->second.type() == typeid(MJTomlString)) {
-            auto str_ptr = std::any_cast<MJTomlString>(&itr->second);
-            ss << "\"" << *str_ptr << "\"";
-        }
-        else if (itr->second.type() == typeid(MJTomlBoolean)) {
-            auto bool_ptr = std::any_cast<MJTomlBoolean>(&itr->second);
-            ss << (*bool_ptr ? "true" : "false");
-        }
-        else if (itr->second.type() == typeid(MJTomlInteger)) {
-            auto int_ptr = std::any_cast<MJTomlInteger>(&itr->second);
-            ss << *int_ptr;
-        }
-        joiner = ",\n";
-    }
-    ss << std::endl << root_space << "}";
-    return ss.str();
+std::string string_json(MJToml const & toml, int indent, bool is_strict) {
+    return ::string_json(toml.table, indent, is_strict);
 }
-    
+
 }

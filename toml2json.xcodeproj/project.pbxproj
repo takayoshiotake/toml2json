@@ -14,6 +14,7 @@
 		12E57A472116E5B2009A0732 /* table.toml in CopyFiles */ = {isa = PBXBuildFile; fileRef = 12E57A452116E54C009A0732 /* table.toml */; };
 		12E57A492116F21C009A0732 /* comment.toml in CopyFiles */ = {isa = PBXBuildFile; fileRef = 12E57A482116F1EA009A0732 /* comment.toml */; };
 		12E57A4B21172800009A0732 /* integer.toml in CopyFiles */ = {isa = PBXBuildFile; fileRef = 12E57A4A211727B2009A0732 /* integer.toml */; };
+		12E57A4D211870CD009A0732 /* float.toml in CopyFiles */ = {isa = PBXBuildFile; fileRef = 12E57A4C211870C7009A0732 /* float.toml */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -23,6 +24,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				12E57A4D211870CD009A0732 /* float.toml in CopyFiles */,
 				12E57A4B21172800009A0732 /* integer.toml in CopyFiles */,
 				12E57A492116F21C009A0732 /* comment.toml in CopyFiles */,
 				12E57A472116E5B2009A0732 /* table.toml in CopyFiles */,
@@ -43,6 +45,7 @@
 		12E57A452116E54C009A0732 /* table.toml */ = {isa = PBXFileReference; lastKnownFileType = text; path = table.toml; sourceTree = "<group>"; };
 		12E57A482116F1EA009A0732 /* comment.toml */ = {isa = PBXFileReference; lastKnownFileType = text; path = comment.toml; sourceTree = "<group>"; };
 		12E57A4A211727B2009A0732 /* integer.toml */ = {isa = PBXFileReference; lastKnownFileType = text; path = integer.toml; sourceTree = "<group>"; };
+		12E57A4C211870C7009A0732 /* float.toml */ = {isa = PBXFileReference; lastKnownFileType = text; path = float.toml; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,6 +90,7 @@
 			isa = PBXGroup;
 			children = (
 				12E57A482116F1EA009A0732 /* comment.toml */,
+				12E57A4C211870C7009A0732 /* float.toml */,
 				12E57A4A211727B2009A0732 /* integer.toml */,
 				12E57A43210DB1C4009A0732 /* keys.toml */,
 				12E57A41210CCBB5009A0732 /* string.toml */,
