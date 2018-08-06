@@ -418,7 +418,7 @@ namespace {
     
     static auto string_json(MJTomlTable const & table, int indent, bool is_strict) -> std::string {
         std::stringstream ss;
-        std::string joiner = "";
+        std::string joiner = "\n";
         
         std::string root_space;
         for (int i = 0; i < indent; ++i) {
@@ -426,7 +426,7 @@ namespace {
         }
         std::string space = root_space + "  ";
         
-        ss << "{" << std::endl;
+        ss << "{";
         for (auto itr = table.begin(); itr != table.end(); ++itr) {
             ss << joiner << space << "\"" << itr->first << "\": ";
             if (itr->second.type() == typeid(MJTomlTable)) {
@@ -481,7 +481,7 @@ namespace {
         
     static auto string_json(MJTomlArray const & array, int indent, bool is_strict) -> std::string {
         std::stringstream ss;
-        std::string joiner = "";
+        std::string joiner = "\n";
         
         std::string root_space;
         for (int i = 0; i < indent; ++i) {
@@ -489,7 +489,7 @@ namespace {
         }
         std::string space = root_space + "  ";
         
-        ss << "[" << std::endl;
+        ss << "[";
         for (auto itr = array.begin(); itr != array.end(); ++itr) {
             ss << joiner << space;
             if (itr->type() == typeid(MJTomlTable)) {
