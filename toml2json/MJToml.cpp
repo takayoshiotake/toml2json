@@ -271,10 +271,36 @@ namespace {
                 MJTOML_LOG("comment: %s\n", std::string(comment_begin, itr).c_str());
             }
             else {
-                std::vector<std::string> dotted_keys;
-                int type = -1; // 0: Table, 1: Key/Value Pair
+                static int const TYPE_ARRAY_OF_TABLE = 0;
+                static int const TYPE_TABLE = 1;
+                static int const TYPE_KEY_VALUE_PAIR = 2;
                 
-                // Table, TODO: Array of tables
+                std::vector<std::string> dotted_keys;
+                int type = -1;
+                
+                // Array of table
+                if (type == -1) {
+                    // seeAlso: Table
+                    static std::regex const re(R"(^\[\[((?:[A-Za-z0-9_-]+|\".*?[^\\]\"|'.+?'|[\t ]+|\.)+)\]\])");
+                    std::cmatch m;
+                    
+                    if (std::regex_search(itr, end, m, re)) {
+                        if (!is_root) {
+                            // End the array of table, return to root table
+                            return itr;
+                        }
+                        
+                        itr = m[0].second;
+                        
+                        auto keys_begin = skip_ws(m[1].first, m[1].second);
+                        auto keys = std::string(keys_begin, m[1].second);
+                        MJTOML_LOG("keys: %s\n", keys.c_str());
+                        
+                        dotted_keys = parse_keys(keys.cbegin(), keys.cend());
+                        type = TYPE_ARRAY_OF_TABLE;
+                    }
+                }
+                // Table
                 if (type == -1) {
                     // key_pattern = [A-Za-z0-9_-]+|\".*?[^\\]\"|'.+?'
                     // space_and_dot = [\t ]+|\.
@@ -295,7 +321,7 @@ namespace {
                         MJTOML_LOG("keys: %s\n", keys.c_str());
                         
                         dotted_keys = parse_keys(keys.cbegin(), keys.cend());
-                        type = 0;
+                        type = TYPE_TABLE;
                     }
                 }
                 // Dotted keys, includes Bare keys and Quoted keys
@@ -311,7 +337,7 @@ namespace {
                         MJTOML_LOG("keys: %s\n", keys.c_str());
                         
                         dotted_keys = parse_keys(keys.cbegin(), keys.cend());
-                        type = 1;
+                        type = TYPE_KEY_VALUE_PAIR;
                     }
                 }
                 
@@ -326,6 +352,10 @@ namespace {
                             if ((*child_table)[value_key].type() == typeid(MJTomlTable)) {
                                 child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
                             }
+                            else if ((*child_table)[value_key].type() == typeid(MJTomlArray)) {
+                                auto ary_ptr = std::any_cast<MJTomlArray>(&(*child_table)[value_key]);
+                                child_table = std::any_cast<MJTomlTable>(&ary_ptr->back());
+                            }
                             else {
                                 throw std::invalid_argument("Invalid key");
                             }
@@ -336,23 +366,39 @@ namespace {
                         }
                         value_key = *key;
                     }
-                    
-                    if (child_table->count(value_key) != 0) {
-                        throw std::invalid_argument("Duplicated key");
+
+                    if (type == TYPE_ARRAY_OF_TABLE) {
+                        if (child_table->count(value_key) == 0) {
+                            (*child_table)[value_key] = MJTomlArray();
+                            auto ary_ptr = std::any_cast<MJTomlArray>(&(*child_table)[value_key]);
+                            ary_ptr->push_back(MJTomlTable());
+                            child_table = std::any_cast<MJTomlTable>(&ary_ptr->back());
+                        }
+                        else {
+                            auto ary_ptr = std::any_cast<MJTomlArray>(&(*child_table)[value_key]);
+                            ary_ptr->push_back(MJTomlTable());
+                            child_table = std::any_cast<MJTomlTable>(&ary_ptr->back());
+                        }
+                        
+                        itr = parse_table(toml, child_table, itr, end);
                     }
-                    
-                    if (type == 0) {
-                        // Table
+                    else if (type == TYPE_TABLE) {
+                        if (child_table->count(value_key) != 0) {
+                            throw std::invalid_argument("Duplicated key");
+                        }
+
                         (*child_table)[value_key] = MJTomlTable();
                         child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
                         
                         itr = parse_table(toml, child_table, itr, end);
                     }
-                    else if (type == 1) {
-                        // Key/Value Pair
+                    else if (type == TYPE_KEY_VALUE_PAIR) {
+                        if (child_table->count(value_key) != 0) {
+                            throw std::invalid_argument("Duplicated key");
+                        }
+                        
                         std::any value;
                         itr = parse_value(&value, itr, end);
-                        
                         (*child_table)[value_key] = value;
                     }
                     else {
@@ -366,6 +412,9 @@ namespace {
         return itr;
     }
     
+    
+    static auto string_json(MJTomlTable const & table, int indent, bool is_strict) -> std::string;
+    static auto string_json(MJTomlArray const & array, int indent, bool is_strict) -> std::string;
     
     static auto string_json(MJTomlTable const & table, int indent, bool is_strict) -> std::string {
         std::stringstream ss;
@@ -382,6 +431,9 @@ namespace {
             ss << joiner << space << "\"" << itr->first << "\": ";
             if (itr->second.type() == typeid(MJTomlTable)) {
                 ss << string_json(*std::any_cast<MJTomlTable>(&itr->second), indent + 1, is_strict);
+            }
+            else if (itr->second.type() == typeid(MJTomlArray)) {
+                ss << string_json(*std::any_cast<MJTomlArray>(&itr->second), indent + 1, is_strict);
             }
             else if (itr->second.type() == typeid(MJTomlString)) {
                 auto str_ptr = std::any_cast<MJTomlString>(&itr->second);
@@ -424,6 +476,28 @@ namespace {
             joiner = ",\n";
         }
         ss << std::endl << root_space << "}";
+        return ss.str();
+    }
+        
+    static auto string_json(MJTomlArray const & array, int indent, bool is_strict) -> std::string {
+        std::stringstream ss;
+        std::string joiner = "";
+        
+        std::string root_space;
+        for (int i = 0; i < indent; ++i) {
+            root_space += "  ";
+        }
+        std::string space = root_space + "  ";
+        
+        ss << "[" << std::endl;
+        for (auto itr = array.begin(); itr != array.end(); ++itr) {
+            ss << joiner << space;
+            if (itr->type() == typeid(MJTomlTable)) {
+                ss << string_json(*std::any_cast<MJTomlTable>(&*itr), indent + 1, is_strict);
+            }
+            joiner = ",\n";
+        }
+        ss << std::endl << root_space << "]";
         return ss.str();
     }
 }
