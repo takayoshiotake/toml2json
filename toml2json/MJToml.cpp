@@ -49,7 +49,80 @@ namespace {
     
     template <typename T>
     static auto parse_value(std::any * value, T itr, T end) -> T {
-        if (::strstr(itr, "\"\"\"") == itr) {
+        if (*itr == '[') {
+            ++itr;
+            itr = skip_ws(itr, end);
+            if (itr >= end) {
+                throw std::invalid_argument("ill-formed of array");
+            }
+            
+            // Array
+            MJTOML_LOG("array\n");
+            *value = MJTomlArray();
+            auto ary_ptr = std::any_cast<MJTomlArray>(value);
+            auto is_first = true;
+            while (itr < end) {
+                itr = skip_ws(itr, end);
+                if (itr >= end) {
+                    throw std::invalid_argument("ill-formed of array");
+                }
+                
+                if (*itr == '#') {
+                    __attribute__((unused))
+                    auto comment_begin = itr;
+                    itr = skip_to_newline(itr, end);
+                    
+                    MJTOML_LOG("comment: %s\n", std::string(comment_begin, itr).c_str());
+                    itr = skip_ws(itr, end);
+                    if (itr >= end) {
+                        throw std::invalid_argument("ill-formed of array");
+                    }
+                }
+                
+                if (*itr == ']') {
+                    // End of array
+                    return itr + 1;
+                }
+                
+                if (!is_first) {
+                    if (*itr != ',') {
+                        throw std::invalid_argument("ill-formed of array");
+                    }
+                    ++itr;
+                    itr = skip_ws(itr, end);
+                    if (itr >= end) {
+                        throw std::invalid_argument("ill-formed of array");
+                    }
+                    
+                    if (*itr == '#') {
+                        __attribute__((unused))
+                        auto comment_begin = itr;
+                        itr = skip_to_newline(itr, end);
+                        
+                        MJTOML_LOG("comment: %s\n", std::string(comment_begin, itr).c_str());
+                        itr = skip_ws(itr, end);
+                        if (itr >= end) {
+                            throw std::invalid_argument("ill-formed of array");
+                        }
+                    }
+                    if (itr >= end) {
+                        throw std::invalid_argument("ill-formed of array");
+                    }
+                    
+                    if (*itr == ']') {
+                        // End of array
+                        return itr + 1;
+                    }
+                }
+                
+                std::any value;
+                itr = parse_value(&value, itr, end);
+                ary_ptr->push_back(std::move(value));
+                is_first = false;
+            }
+            throw std::invalid_argument("ill-formed of array");
+        }
+        else if (::strstr(itr, "\"\"\"") == itr) {
             // Multi-line basic strings
             static std::regex const re(R"(^\"\"\"([\s\S]*?)\"\"\")");
             std::cmatch m;
@@ -130,7 +203,7 @@ namespace {
             // Boolean
             {
                 {
-                    static std::regex const re(R"(^(true)[\t\r\n #])");
+                    static std::regex const re(R"(^(true)[\t\r\n #,\]])");
                     std::cmatch m;
                     if (std::regex_search(itr, end, m, re)) {
                         *value = true;
@@ -138,7 +211,7 @@ namespace {
                     }
                 }
                 {
-                    static std::regex const re(R"(^(false)[\t\r\n #])");
+                    static std::regex const re(R"(^(false)[\t\r\n #,\]])");
                     std::cmatch m;
                     if (std::regex_search(itr, end, m, re)) {
                         *value = false;
@@ -149,7 +222,7 @@ namespace {
             {
                 // Float
                 {
-                    static std::regex const re(R"(^(([+-]?)inf)[\t\r\n #])");
+                    static std::regex const re(R"(^(([+-]?)inf)[\t\r\n #,\]])");
                     std::cmatch m;
                     if (std::regex_search(itr, end, m, re)) {
                         *value = std::numeric_limits<double>::infinity() * (m[2].compare("-") == 0 ? -1 : 1);
@@ -157,7 +230,7 @@ namespace {
                     }
                 }
                 {
-                    static std::regex const re(R"(^([+-]?nan)[\t\r\n #])");
+                    static std::regex const re(R"(^([+-]?nan)[\t\r\n #,\]])");
                     std::cmatch m;
                     if (std::regex_search(itr, end, m, re)) {
                         *value = std::numeric_limits<double>::quiet_NaN();
@@ -165,7 +238,7 @@ namespace {
                     }
                 }
                 {
-                    static std::regex const re(R"(^([+-]?[0-9_]+(?:\.[0-9_]+)?(?:[eE][+-]?[0-9]+)?)[\t|\r|\n #])");
+                    static std::regex const re(R"(^([+-]?[0-9_]+(?:\.[0-9_]+)?(?:[eE][+-]?[0-9]+)?)[\t|\r|\n #,\]])");
                     std::cmatch m;
                     if (std::regex_search(itr, end, m, re)) {
                         auto flt = std::string(m[1]);
@@ -182,7 +255,7 @@ namespace {
             }
             {
                 // Integer
-                static std::regex const re(R"(^(0x([A-Fa-f0-9_]+)|0o([0-7]+)|0b([01]+)|([+-]?[0-9_]+))[\t\r\n #])");
+                static std::regex const re(R"(^(0x([A-Fa-f0-9_]+)|0o([0-7]+)|0b([01]+)|([+-]?[0-9_]+))[\t\r\n #,\]])");
                 std::cmatch m;
                 if (std::regex_search(itr, end, m, re)) {
                     if (m[2].length() != 0) {
@@ -492,6 +565,17 @@ namespace {
             ss << joiner << space;
             if (itr->type() == typeid(MJTomlTable)) {
                 ss << string_json(*std::any_cast<MJTomlTable>(&*itr), indent + 1, is_strict);
+            }
+            else if (itr->type() == typeid(MJTomlArray)) {
+                ss << string_json(*std::any_cast<MJTomlArray>(&*itr), indent + 1, is_strict);
+            }
+            else if (itr->type() == typeid(MJTomlString)) {
+                auto str_ptr = std::any_cast<MJTomlString>(&*itr);
+                ss << "\"" << *str_ptr << "\"";
+            }
+            else if (itr->type() == typeid(MJTomlDescribedFloat)) {
+                auto flt_ptr = std::any_cast<MJTomlDescribedFloat>(&*itr);
+                ss << flt_ptr->description;
             }
             joiner = ",\n";
         }
