@@ -117,6 +117,11 @@ namespace {
                 
                 std::any value;
                 itr = parse_value(&value, itr, end);
+                if (ary_ptr->size() > 0) {
+                    if (ary_ptr->front().type() != value.type()) {
+                        throw std::invalid_argument("mixed type array");
+                    }
+                }
                 ary_ptr->push_back(std::move(value));
                 is_first = false;
             }
