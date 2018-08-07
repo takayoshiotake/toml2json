@@ -238,7 +238,7 @@ namespace {
                     }
                 }
                 {
-                    static std::regex const re(R"(^([+-]?[0-9_]+(?:\.[0-9_]+)?(?:[eE][+-]?[0-9]+)?)[\t|\r|\n #,\]])");
+                    static std::regex const re(R"(^([+-]?[0-9_]+(?:\.[0-9_]+(?:[eE][+-]?[0-9]+)?|(?:\.[0-9_]+)?[eE][+-]?[0-9]+))[\t|\r|\n #,\]])");
                     std::cmatch m;
                     if (std::regex_search(itr, end, m, re)) {
                         auto flt = std::string(m[1]);
@@ -274,7 +274,7 @@ namespace {
                         *value = std::stoll(std::regex_replace(integer, std::regex("_"), ""), 0, 2);
                     }
                     else if (m[5].length() != 0) {
-                        auto integer = std::string(m[4]);
+                        auto integer = std::string(m[5]);
                         MJTOML_LOG("integer: %s\n", integer.c_str());
                         *value = std::stoll(std::regex_replace(integer, std::regex("_"), ""));
                     }
@@ -572,6 +572,10 @@ namespace {
             else if (itr->type() == typeid(MJTomlString)) {
                 auto str_ptr = std::any_cast<MJTomlString>(&*itr);
                 ss << "\"" << *str_ptr << "\"";
+            }
+            else if (itr->type() == typeid(MJTomlInteger)) {
+                auto int_ptr = std::any_cast<MJTomlInteger>(&*itr);
+                ss << *int_ptr;
             }
             else if (itr->type() == typeid(MJTomlDescribedFloat)) {
                 auto flt_ptr = std::any_cast<MJTomlDescribedFloat>(&*itr);
