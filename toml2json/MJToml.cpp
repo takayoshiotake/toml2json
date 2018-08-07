@@ -486,6 +486,7 @@ namespace {
     
     static auto string_json(MJTomlTable const & table, int indent, bool is_strict) -> std::string;
     static auto string_json(MJTomlArray const & array, int indent, bool is_strict) -> std::string;
+    static auto string_json(std::any const & value, int indent, bool is_strict) -> std::string;
     
     static auto string_json(MJTomlTable const & table, int indent, bool is_strict) -> std::string {
         std::stringstream ss;
@@ -500,50 +501,7 @@ namespace {
         ss << "{";
         for (auto itr = table.begin(); itr != table.end(); ++itr) {
             ss << joiner << space << "\"" << itr->first << "\": ";
-            if (itr->second.type() == typeid(MJTomlTable)) {
-                ss << string_json(*std::any_cast<MJTomlTable>(&itr->second), indent + 1, is_strict);
-            }
-            else if (itr->second.type() == typeid(MJTomlArray)) {
-                ss << string_json(*std::any_cast<MJTomlArray>(&itr->second), indent + 1, is_strict);
-            }
-            else if (itr->second.type() == typeid(MJTomlString)) {
-                auto str_ptr = std::any_cast<MJTomlString>(&itr->second);
-                ss << "\"" << *str_ptr << "\"";
-            }
-            else if (itr->second.type() == typeid(MJTomlBoolean)) {
-                auto bool_ptr = std::any_cast<MJTomlBoolean>(&itr->second);
-                ss << (*bool_ptr ? "true" : "false");
-            }
-            else if (itr->second.type() == typeid(MJTomlInteger)) {
-                auto int_ptr = std::any_cast<MJTomlInteger>(&itr->second);
-                ss << *int_ptr;
-            }
-            else if (itr->second.type() == typeid(MJTomlFloat)) {
-                auto flt_ptr = std::any_cast<MJTomlFloat>(&itr->second);
-                if (std::isinf(*flt_ptr)) {
-                    if (is_strict) {
-                        ss << "\"" << (*flt_ptr < 0 ? "-" : "") << "Infinity" << "\"";
-                    }
-                    else {
-                        ss << (*flt_ptr < 0 ? "-" : "") << "Infinity";
-                    }
-                }
-                else if (std::isnan(*flt_ptr)) {
-                    if (is_strict) {
-                        ss << "\"NaN\"";
-                    }
-                    else {
-                        ss << "NaN";
-                    }
-                }
-                else {
-                    ss << std::scientific << std::setprecision(std::numeric_limits<double>::max_digits10) << *flt_ptr;
-                }
-            }
-            else if (itr->second.type() == typeid(MJTomlDescribedFloat)) {
-                auto flt_ptr = std::any_cast<MJTomlDescribedFloat>(&itr->second);
-                ss << flt_ptr->description;
-            }
+            ss << string_json(itr->second, indent, is_strict);
             joiner = ",\n";
         }
         ss << std::endl << root_space << "}";
@@ -563,27 +521,59 @@ namespace {
         ss << "[";
         for (auto itr = array.begin(); itr != array.end(); ++itr) {
             ss << joiner << space;
-            if (itr->type() == typeid(MJTomlTable)) {
-                ss << string_json(*std::any_cast<MJTomlTable>(&*itr), indent + 1, is_strict);
-            }
-            else if (itr->type() == typeid(MJTomlArray)) {
-                ss << string_json(*std::any_cast<MJTomlArray>(&*itr), indent + 1, is_strict);
-            }
-            else if (itr->type() == typeid(MJTomlString)) {
-                auto str_ptr = std::any_cast<MJTomlString>(&*itr);
-                ss << "\"" << *str_ptr << "\"";
-            }
-            else if (itr->type() == typeid(MJTomlInteger)) {
-                auto int_ptr = std::any_cast<MJTomlInteger>(&*itr);
-                ss << *int_ptr;
-            }
-            else if (itr->type() == typeid(MJTomlDescribedFloat)) {
-                auto flt_ptr = std::any_cast<MJTomlDescribedFloat>(&*itr);
-                ss << flt_ptr->description;
-            }
+            ss << string_json(*itr, indent, is_strict);
             joiner = ",\n";
         }
         ss << std::endl << root_space << "]";
+        return ss.str();
+    }
+        
+    static auto string_json(std::any const & value, int indent, bool is_strict) -> std::string {
+        std::stringstream ss;
+        if (value.type() == typeid(MJTomlTable)) {
+            ss << string_json(*std::any_cast<MJTomlTable>(&value), indent + 1, is_strict);
+        }
+        else if (value.type() == typeid(MJTomlArray)) {
+            ss << string_json(*std::any_cast<MJTomlArray>(&value), indent + 1, is_strict);
+        }
+        else if (value.type() == typeid(MJTomlString)) {
+            auto str_ptr = std::any_cast<MJTomlString>(&value);
+            ss << "\"" << *str_ptr << "\"";
+        }
+        else if (value.type() == typeid(MJTomlBoolean)) {
+            auto bool_ptr = std::any_cast<MJTomlBoolean>(&value);
+            ss << (*bool_ptr ? "true" : "false");
+        }
+        else if (value.type() == typeid(MJTomlInteger)) {
+            auto int_ptr = std::any_cast<MJTomlInteger>(&value);
+            ss << *int_ptr;
+        }
+        else if (value.type() == typeid(MJTomlFloat)) {
+            auto flt_ptr = std::any_cast<MJTomlFloat>(&value);
+            if (std::isinf(*flt_ptr)) {
+                if (is_strict) {
+                    ss << "\"" << (*flt_ptr < 0 ? "-" : "") << "Infinity" << "\"";
+                }
+                else {
+                    ss << (*flt_ptr < 0 ? "-" : "") << "Infinity";
+                }
+            }
+            else if (std::isnan(*flt_ptr)) {
+                if (is_strict) {
+                    ss << "\"NaN\"";
+                }
+                else {
+                    ss << "NaN";
+                }
+            }
+            else {
+                ss << std::scientific << std::setprecision(std::numeric_limits<double>::max_digits10) << *flt_ptr;
+            }
+        }
+        else if (value.type() == typeid(MJTomlDescribedFloat)) {
+            auto flt_ptr = std::any_cast<MJTomlDescribedFloat>(&value);
+            ss << flt_ptr->description;
+        }
         return ss.str();
     }
 }
