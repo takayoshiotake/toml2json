@@ -182,24 +182,22 @@ namespace {
             }
             {
                 // Integer
-                static std::regex const re(R"(^((0x[A-Fa-f0-9_]+)|(0o[0-7]+)|(0b[01]+)|([+-]?[0-9_]+))[\t\r\n #])");
+                static std::regex const re(R"(^(0x([A-Fa-f0-9_]+)|0o([0-7]+)|0b([01]+)|([+-]?[0-9_]+))[\t\r\n #])");
                 std::cmatch m;
                 if (std::regex_search(itr, end, m, re)) {
                     if (m[2].length() != 0) {
                         auto integer = std::string(m[2]);
-                        MJTOML_LOG("hexadecimal: %s\n", integer.c_str());
+                        MJTOML_LOG("hexadecimal: 0x%s\n", integer.c_str());
                         *value = std::stoll(std::regex_replace(integer, std::regex("_"), ""), 0, 16);
                     }
                     else if (m[3].length() != 0) {
                         auto integer = std::string(m[3]);
-                        MJTOML_LOG("octal: %s\n", integer.c_str());
-                        // FIXME: This couldn't get expected result...
+                        MJTOML_LOG("octal: 0o%s\n", integer.c_str());
                         *value = std::stoll(std::regex_replace(integer, std::regex("_"), ""), 0, 8);
                     }
                     else if (m[4].length() != 0) {
                         auto integer = std::string(m[4]);
-                        MJTOML_LOG("binary: %s\n", integer.c_str());
-                        // FIXME: This couldn't get expected result...
+                        MJTOML_LOG("binary: 0b%s\n", integer.c_str());
                         *value = std::stoll(std::regex_replace(integer, std::regex("_"), ""), 0, 2);
                     }
                     else if (m[5].length() != 0) {
