@@ -17,6 +17,7 @@
 		12E57A4D211870CD009A0732 /* float.toml in CopyFiles */ = {isa = PBXBuildFile; fileRef = 12E57A4C211870C7009A0732 /* float.toml */; };
 		12E57A4F21188D7D009A0732 /* array_of_table.toml in CopyFiles */ = {isa = PBXBuildFile; fileRef = 12E57A4E21188D66009A0732 /* array_of_table.toml */; };
 		12E57A512119C9FF009A0732 /* array.toml in CopyFiles */ = {isa = PBXBuildFile; fileRef = 12E57A502119C9E0009A0732 /* array.toml */; };
+		12E57A57211DC741009A0732 /* inline_table.toml in CopyFiles */ = {isa = PBXBuildFile; fileRef = 12E57A56211DC72A009A0732 /* inline_table.toml */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -26,6 +27,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				12E57A57211DC741009A0732 /* inline_table.toml in CopyFiles */,
 				12E57A512119C9FF009A0732 /* array.toml in CopyFiles */,
 				12E57A4F21188D7D009A0732 /* array_of_table.toml in CopyFiles */,
 				12E57A4D211870CD009A0732 /* float.toml in CopyFiles */,
@@ -52,6 +54,7 @@
 		12E57A4C211870C7009A0732 /* float.toml */ = {isa = PBXFileReference; lastKnownFileType = text; path = float.toml; sourceTree = "<group>"; };
 		12E57A4E21188D66009A0732 /* array_of_table.toml */ = {isa = PBXFileReference; lastKnownFileType = text; path = array_of_table.toml; sourceTree = "<group>"; };
 		12E57A502119C9E0009A0732 /* array.toml */ = {isa = PBXFileReference; lastKnownFileType = text; path = array.toml; sourceTree = "<group>"; };
+		12E57A56211DC72A009A0732 /* inline_table.toml */ = {isa = PBXFileReference; lastKnownFileType = text; path = inline_table.toml; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,6 +102,7 @@
 				12E57A502119C9E0009A0732 /* array.toml */,
 				12E57A482116F1EA009A0732 /* comment.toml */,
 				12E57A4C211870C7009A0732 /* float.toml */,
+				12E57A56211DC72A009A0732 /* inline_table.toml */,
 				12E57A4A211727B2009A0732 /* integer.toml */,
 				12E57A43210DB1C4009A0732 /* keys.toml */,
 				12E57A41210CCBB5009A0732 /* string.toml */,

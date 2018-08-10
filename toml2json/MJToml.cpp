@@ -26,7 +26,7 @@ namespace {
     using namespace MoonJelly;
     
     template <typename T>
-    static T skip_ws(T itr, T end);
+    static auto skip_ws(T itr, T end) -> T;
     template <typename T>
     static auto skip_to_newline(T itr, T end) -> T;
     
@@ -39,6 +39,8 @@ namespace {
     static auto read_value(std::any * value, T itr, T end) -> T;
     template <typename T>
     static auto read_array(std::any * value, T itr, T end) -> T;
+    template <typename T>
+    static auto read_inline_table(std::any * value, T itr, T end) -> T;
 
     // MARK: -
     
@@ -265,6 +267,9 @@ namespace {
     static auto read_value(std::any * value, T itr, T end) -> T {
         if (*itr == '[') {
             itr = read_array(value, itr, end);
+        }
+        else if (*itr == '{') {
+            itr = read_inline_table(value, itr, end);
         }
         else if (::strstr(itr, "\"\"\"") == itr) {
             // Multi-line basic strings
@@ -513,6 +518,103 @@ namespace {
             is_first = false;
         }
         throw std::invalid_argument("ill-formed of array");
+    }
+    
+    // NOTE: Inline table is one line
+    template <typename T>
+    static auto read_inline_table(std::any * value, T itr, T end) -> T {
+        if (itr >= end || *itr != '{') {
+            throw std::invalid_argument("ill-formed of inline table");
+        }
+        ++itr;
+        itr = skip_ws(itr, end);
+        if (itr >= end) {
+            throw std::invalid_argument("ill-formed of inline table");
+        }
+        
+        // Inline table
+        MJTOML_LOG("inline table\n");
+        *value = MJTomlTable();
+        auto table = std::any_cast<MJTomlTable>(value);
+        auto is_first = true;
+        while (itr < end) {
+            itr = skip_ws(itr, end);
+            if (itr >= end) {
+                throw std::invalid_argument("ill-formed of inline table");
+            }
+            
+            if (*itr == '}') {
+                // End of inline table
+                return itr + 1;
+            }
+            if (!is_first) {
+                if (*itr != ',') {
+                    throw std::invalid_argument("ill-formed of inline table");
+                }
+                ++itr;
+                itr = skip_ws(itr, end);
+                if (itr >= end) {
+                    throw std::invalid_argument("ill-formed of inline table");
+                }
+                
+                if (*itr == '}') {
+                    // End of inline table
+                    return itr + 1;
+                }
+            }
+            // Dotted keys, includes Bare keys and Quoted keys
+            std::vector<std::string> dotted_keys;
+            {
+                static std::regex const re(R"(^(.*?)[\t ]*=[\t ]*)");
+                std::cmatch m;
+                
+                if (std::regex_search(itr, end, m, re)) {
+                    // The itr points the beginning of the value.
+                    itr = m[0].second;
+                    
+                    auto keys = std::string(m[1]);
+                    MJTOML_LOG("keys: %s\n", keys.c_str());
+                    
+                    dotted_keys = parse_keys(keys.cbegin(), keys.cend());
+                }
+            }
+            if (dotted_keys.empty()) {
+                throw std::invalid_argument("ill-formed of inline table");
+            }
+            else {
+                MJTomlTable * child_table = table;
+                auto value_key = dotted_keys.front();
+                for (auto key = dotted_keys.cbegin() + 1; key < dotted_keys.cend(); ++key) {
+                    if (child_table->count(value_key) != 0) {
+                        if ((*child_table)[value_key].type() == typeid(MJTomlTable)) {
+                            child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
+                        }
+                        else if ((*child_table)[value_key].type() == typeid(MJTomlArray)) {
+                            auto ary_ptr = std::any_cast<MJTomlArray>(&(*child_table)[value_key]);
+                            child_table = std::any_cast<MJTomlTable>(&ary_ptr->back());
+                        }
+                        else {
+                            throw std::invalid_argument("Invalid key");
+                        }
+                    }
+                    else {
+                        (*child_table)[value_key] = MJTomlTable();
+                        child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
+                    }
+                    value_key = *key;
+                }
+                
+                if (child_table->count(value_key) != 0) {
+                    throw std::invalid_argument("Duplicated key");
+                }
+                
+                std::any value;
+                itr = read_value(&value, itr, end);
+                (*child_table)[value_key] = value;
+                is_first = false;
+            }
+        }
+        throw std::invalid_argument("ill-formed of inline table");
     }
     
     // MARK: -
