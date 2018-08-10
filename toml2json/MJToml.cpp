@@ -25,6 +25,11 @@
 namespace {
     using namespace MoonJelly;
     
+    struct MJTomlArrayParsing {
+        bool is_static;
+        std::vector<std::any> values;
+    };
+    
     template <typename T>
     static auto skip_ws(T itr, T end) -> T;
     template <typename T>
@@ -213,9 +218,9 @@ namespace {
                             if ((*child_table)[value_key].type() == typeid(MJTomlTable)) {
                                 child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
                             }
-                            else if ((*child_table)[value_key].type() == typeid(MJTomlArray)) {
-                                auto ary_ptr = std::any_cast<MJTomlArray>(&(*child_table)[value_key]);
-                                child_table = std::any_cast<MJTomlTable>(&ary_ptr->back());
+                            else if ((*child_table)[value_key].type() == typeid(MJTomlArrayParsing)) {
+                                auto ary_ptr = std::any_cast<MJTomlArrayParsing>(&(*child_table)[value_key]);
+                                child_table = std::any_cast<MJTomlTable>(&ary_ptr->values.back());
                             }
                             else {
                                 throw std::invalid_argument("Invalid key");
@@ -230,15 +235,18 @@ namespace {
                     
                     if (type == TYPE_ARRAY_OF_TABLE) {
                         if (child_table->count(value_key) == 0) {
-                            (*child_table)[value_key] = MJTomlArray();
-                            auto ary_ptr = std::any_cast<MJTomlArray>(&(*child_table)[value_key]);
-                            ary_ptr->push_back(MJTomlTable());
-                            child_table = std::any_cast<MJTomlTable>(&ary_ptr->back());
+                            (*child_table)[value_key] = MJTomlArrayParsing();
+                            auto ary_ptr = std::any_cast<MJTomlArrayParsing>(&(*child_table)[value_key]);
+                            ary_ptr->values.push_back(MJTomlTable());
+                            child_table = std::any_cast<MJTomlTable>(&ary_ptr->values.back());
                         }
                         else {
-                            auto ary_ptr = std::any_cast<MJTomlArray>(&(*child_table)[value_key]);
-                            ary_ptr->push_back(MJTomlTable());
-                            child_table = std::any_cast<MJTomlTable>(&ary_ptr->back());
+                            auto ary_ptr = std::any_cast<MJTomlArrayParsing>(&(*child_table)[value_key]);
+                            if (ary_ptr->is_static) {
+                                throw std::invalid_argument("ill-formed of array: statically defined array is not appendable");
+                            }
+                            ary_ptr->values.push_back(MJTomlTable());
+                            child_table = std::any_cast<MJTomlTable>(&ary_ptr->values.back());
                         }
                         
                         itr = read_table(child_table, itr, end);
@@ -487,8 +495,9 @@ namespace {
         
         // Array
         MJTOML_LOG("array\n");
-        *value = MJTomlArray();
-        auto ary_ptr = std::any_cast<MJTomlArray>(value);
+        *value = MJTomlArrayParsing();
+        auto ary_ptr = std::any_cast<MJTomlArrayParsing>(value);
+        ary_ptr->is_static = true;
         auto is_first = true;
         while (itr < end) {
             itr = skip_ws(itr, end);
@@ -546,12 +555,12 @@ namespace {
             
             std::any value;
             itr = read_value(&value, itr, end);
-            if (ary_ptr->size() > 0) {
-                if (ary_ptr->front().type() != value.type()) {
+            if (ary_ptr->values.size() > 0) {
+                if (ary_ptr->values.front().type() != value.type()) {
                     throw std::invalid_argument("mixed type array");
                 }
             }
-            ary_ptr->push_back(std::move(value));
+            ary_ptr->values.push_back(std::move(value));
             is_first = false;
         }
         throw std::invalid_argument("ill-formed of array");
@@ -626,9 +635,9 @@ namespace {
                         if ((*child_table)[value_key].type() == typeid(MJTomlTable)) {
                             child_table = std::any_cast<MJTomlTable>(&(*child_table)[value_key]);
                         }
-                        else if ((*child_table)[value_key].type() == typeid(MJTomlArray)) {
-                            auto ary_ptr = std::any_cast<MJTomlArray>(&(*child_table)[value_key]);
-                            child_table = std::any_cast<MJTomlTable>(&ary_ptr->back());
+                        else if ((*child_table)[value_key].type() == typeid(MJTomlArrayParsing)) {
+                            auto ary_ptr = std::any_cast<MJTomlArrayParsing>(&(*child_table)[value_key]);
+                            child_table = std::any_cast<MJTomlTable>(&ary_ptr->values.back());
                         }
                         else {
                             throw std::invalid_argument("Invalid key");
@@ -652,6 +661,35 @@ namespace {
             }
         }
         throw std::invalid_argument("ill-formed of inline table");
+    }
+    
+    // MARK: -
+    
+    static auto convert_types(MJTomlTable * table) -> void;
+    static auto convert_types(MJTomlArray * array) -> void;
+    
+    static auto convert_types(MJTomlTable * table) -> void {
+        for (auto itr = table->begin(); itr != table->end(); ++itr) {
+            if (itr->second.type() == typeid(MJTomlTable)) {
+                convert_types(std::any_cast<MJTomlTable>(&itr->second));
+            }
+            else if (itr->second.type() == typeid(MJTomlArrayParsing)) {
+                itr->second = std::any_cast<MJTomlArrayParsing>(&itr->second)->values;
+                convert_types(std::any_cast<MJTomlArray>(&itr->second));
+            }
+        }
+    }
+    
+    static auto convert_types(MJTomlArray * array) -> void {
+        for (auto itr = array->begin(); itr != array->end(); ++itr) {
+            if (itr->type() == typeid(MJTomlTable)) {
+                convert_types(std::any_cast<MJTomlTable>(&*itr));
+            }
+            else if (itr->type() == typeid(MJTomlArrayParsing)) {
+                *itr = std::any_cast<MJTomlArrayParsing>(&*itr)->values;
+                convert_types(std::any_cast<MJTomlArray>(&*itr));
+            }
+        }
     }
     
     // MARK: -
@@ -759,6 +797,8 @@ namespace MoonJelly {
 MJToml parse_toml(std::string_view str) {
     MJToml toml;
     ::read_table(&toml.table, str.cbegin(), str.cend(), true);
+    // MJTomlArrayParsing => MJTomlArray
+    ::convert_types(&toml.table);
     return toml;
 }
 
