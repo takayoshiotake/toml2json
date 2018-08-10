@@ -37,6 +37,8 @@ namespace {
     static auto read_table(MJTomlTable * table, T itr, T end, bool is_root = false) -> T;
     template <typename T>
     static auto read_value(std::any * value, T itr, T end) -> T;
+    template <typename T>
+    static auto read_array(std::any * value, T itr, T end) -> T;
 
     // MARK: -
     
@@ -262,82 +264,7 @@ namespace {
     template <typename T>
     static auto read_value(std::any * value, T itr, T end) -> T {
         if (*itr == '[') {
-            ++itr;
-            itr = skip_ws(itr, end);
-            if (itr >= end) {
-                throw std::invalid_argument("ill-formed of array");
-            }
-            
-            // Array
-            MJTOML_LOG("array\n");
-            *value = MJTomlArray();
-            auto ary_ptr = std::any_cast<MJTomlArray>(value);
-            auto is_first = true;
-            while (itr < end) {
-                itr = skip_ws(itr, end);
-                if (itr >= end) {
-                    throw std::invalid_argument("ill-formed of array");
-                }
-                
-                if (*itr == '#') {
-                    __attribute__((unused))
-                    auto comment_begin = itr;
-                    itr = skip_to_newline(itr, end);
-                    
-                    MJTOML_LOG("comment: %s\n", std::string(comment_begin, itr).c_str());
-                    itr = skip_ws(itr, end);
-                    if (itr >= end) {
-                        throw std::invalid_argument("ill-formed of array");
-                    }
-                }
-                
-                if (*itr == ']') {
-                    // End of array
-                    return itr + 1;
-                }
-                
-                if (!is_first) {
-                    if (*itr != ',') {
-                        throw std::invalid_argument("ill-formed of array");
-                    }
-                    ++itr;
-                    itr = skip_ws(itr, end);
-                    if (itr >= end) {
-                        throw std::invalid_argument("ill-formed of array");
-                    }
-                    
-                    if (*itr == '#') {
-                        __attribute__((unused))
-                        auto comment_begin = itr;
-                        itr = skip_to_newline(itr, end);
-                        
-                        MJTOML_LOG("comment: %s\n", std::string(comment_begin, itr).c_str());
-                        itr = skip_ws(itr, end);
-                        if (itr >= end) {
-                            throw std::invalid_argument("ill-formed of array");
-                        }
-                    }
-                    if (itr >= end) {
-                        throw std::invalid_argument("ill-formed of array");
-                    }
-                    
-                    if (*itr == ']') {
-                        // End of array
-                        return itr + 1;
-                    }
-                }
-                
-                std::any value;
-                itr = read_value(&value, itr, end);
-                if (ary_ptr->size() > 0) {
-                    if (ary_ptr->front().type() != value.type()) {
-                        throw std::invalid_argument("mixed type array");
-                    }
-                }
-                ary_ptr->push_back(std::move(value));
-                is_first = false;
-            }
-            throw std::invalid_argument("ill-formed of array");
+            itr = read_array(value, itr, end);
         }
         else if (::strstr(itr, "\"\"\"") == itr) {
             // Multi-line basic strings
@@ -436,8 +363,8 @@ namespace {
                     }
                 }
             }
+            // Float
             {
-                // Float
                 {
                     static std::regex const re(R"(^(([+-]?)inf)[\t\r\n #,\]])");
                     std::cmatch m;
@@ -470,8 +397,8 @@ namespace {
                     }
                 }
             }
+            // Integer
             {
-                // Integer
                 static std::regex const re(R"(^(0x([A-Fa-f0-9_]+)|0o([0-7]+)|0b([01]+)|([+-]?[0-9_]+))[\t\r\n #,\]])");
                 std::cmatch m;
                 if (std::regex_search(itr, end, m, re)) {
@@ -503,6 +430,89 @@ namespace {
         }
         
         return itr;
+    }
+    
+    template <typename T>
+    static auto read_array(std::any * value, T itr, T end) -> T {
+        if (itr >= end || *itr != '[') {
+            throw std::invalid_argument("ill-formed of array");
+        }
+        ++itr;
+        itr = skip_ws(itr, end);
+        if (itr >= end) {
+            throw std::invalid_argument("ill-formed of array");
+        }
+        
+        // Array
+        MJTOML_LOG("array\n");
+        *value = MJTomlArray();
+        auto ary_ptr = std::any_cast<MJTomlArray>(value);
+        auto is_first = true;
+        while (itr < end) {
+            itr = skip_ws(itr, end);
+            if (itr >= end) {
+                throw std::invalid_argument("ill-formed of array");
+            }
+            
+            if (*itr == '#') {
+                __attribute__((unused))
+                auto comment_begin = itr;
+                itr = skip_to_newline(itr, end);
+                
+                MJTOML_LOG("comment: %s\n", std::string(comment_begin, itr).c_str());
+                itr = skip_ws(itr, end);
+                if (itr >= end) {
+                    throw std::invalid_argument("ill-formed of array");
+                }
+            }
+            
+            if (*itr == ']') {
+                // End of array
+                return itr + 1;
+            }
+            
+            if (!is_first) {
+                if (*itr != ',') {
+                    throw std::invalid_argument("ill-formed of array");
+                }
+                ++itr;
+                itr = skip_ws(itr, end);
+                if (itr >= end) {
+                    throw std::invalid_argument("ill-formed of array");
+                }
+                
+                if (*itr == '#') {
+                    __attribute__((unused))
+                    auto comment_begin = itr;
+                    itr = skip_to_newline(itr, end);
+                    
+                    MJTOML_LOG("comment: %s\n", std::string(comment_begin, itr).c_str());
+                    itr = skip_ws(itr, end);
+                    if (itr >= end) {
+                        throw std::invalid_argument("ill-formed of array");
+                    }
+                }
+                if (itr >= end) {
+                    throw std::invalid_argument("ill-formed of array");
+                }
+                
+                if (*itr == ']') {
+                    // End of array
+                    return itr + 1;
+                }
+            }
+            
+            std::any value;
+            itr = read_value(&value, itr, end);
+            if (ary_ptr->size() > 0) {
+                if (ary_ptr->front().type() != value.type()) {
+                    throw std::invalid_argument("mixed type array");
+                }
+            }
+            ary_ptr->push_back(std::move(value));
+            is_first = false;
+        }
+        throw std::invalid_argument("ill-formed of array");
     }
     
     // MARK: -
