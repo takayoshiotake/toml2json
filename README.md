@@ -1,5 +1,5 @@
 # toml2json
-C++ toml parser and json writer (under developing)
+C++ toml v0.5.0 parser and json writer
 
 ---
 
