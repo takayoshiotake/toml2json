@@ -28,6 +28,8 @@ namespace {
     template <typename T>
     static auto skip_ws(T itr, T end) -> T;
     template <typename T>
+    static auto skip_ws_within_single_line(T itr, T end) -> T;
+    template <typename T>
     static auto skip_to_newline(T itr, T end) -> T;
     
     template <typename T>
@@ -59,8 +61,16 @@ namespace {
     }
     
     template <typename T>
+    static T skip_ws_within_single_line(T itr, T end) {
+        while (itr < end && (*itr == '\t' || *itr == ' ')) {
+            ++itr;
+        }
+        return itr;
+    }
+    
+    template <typename T>
     static auto skip_to_newline(T itr, T end) -> T {
-        while (*itr != '\n' && *itr != '\r') {
+        while (itr < end && (*itr != '\n' && *itr != '\r')) {
             ++itr;
         }
         return itr;
@@ -520,14 +530,14 @@ namespace {
         throw std::invalid_argument("ill-formed of array");
     }
     
-    // NOTE: Inline table is one line
+    // NOTE: Inline table must be one line
     template <typename T>
     static auto read_inline_table(std::any * value, T itr, T end) -> T {
         if (itr >= end || *itr != '{') {
             throw std::invalid_argument("ill-formed of inline table");
         }
         ++itr;
-        itr = skip_ws(itr, end);
+        itr = skip_ws_within_single_line(itr, end);
         if (itr >= end) {
             throw std::invalid_argument("ill-formed of inline table");
         }
@@ -538,7 +548,7 @@ namespace {
         auto table = std::any_cast<MJTomlTable>(value);
         auto is_first = true;
         while (itr < end) {
-            itr = skip_ws(itr, end);
+            itr = skip_ws_within_single_line(itr, end);
             if (itr >= end) {
                 throw std::invalid_argument("ill-formed of inline table");
             }
@@ -552,7 +562,7 @@ namespace {
                     throw std::invalid_argument("ill-formed of inline table");
                 }
                 ++itr;
-                itr = skip_ws(itr, end);
+                itr = skip_ws_within_single_line(itr, end);
                 if (itr >= end) {
                     throw std::invalid_argument("ill-formed of inline table");
                 }
