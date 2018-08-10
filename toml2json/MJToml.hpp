@@ -37,6 +37,9 @@ namespace MoonJelly {
         MJTomlFloat value;
         std::string description; // This will keep the original string as possible, is compatible with JSON string
     };
+    struct MJTomlDateTime {
+        std::string value;
+    };
     
     struct MJToml {
         MJTomlTable table;

@@ -7,10 +7,10 @@ arr5 = [ [ 1, 2 ], ["a", "b", "c"] ]
 # arr6 = [ 1, 2.0 ] # INVALID
 
 arr7 = [
-1, 2, 3
+  1, 2, 3
 ]
 
 arr8 = [
-1,
-2, # this is ok
+  1,
+  2, # this is ok
 ]

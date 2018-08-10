@@ -440,6 +440,33 @@ namespace {
                     return m[1].second;
                 }
             }
+            // Offset Date-Time, Local Date-Time, Local Date, Local Time (RFC 3339)
+            {
+                // Offset Date-Time, Local Date-Time
+                {
+                    static std::regex const re(R"(^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})?)[\t\r\n #,\]])");
+                    std::cmatch m;
+                    if (std::regex_search(itr, end, m, re)) {
+                        auto datetime = std::string(m[1]);
+                        MJTOML_LOG("datetime: %s\n", datetime.c_str());
+                        
+                        *value = MJTomlDateTime{datetime};
+                        return m[1].second;
+                    }
+                }
+                // Local Date, Local Time
+                {
+                    static std::regex const re(R"(^(\d{4}-\d{2}-\d{2}|\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?)[\t\r\n #,\]])");
+                    std::cmatch m;
+                    if (std::regex_search(itr, end, m, re)) {
+                        auto datetime = std::string(m[1]);
+                        MJTOML_LOG("datetime: %s\n", datetime.c_str());
+                        
+                        *value = MJTomlDateTime{datetime};
+                        return m[1].second;
+                    }
+                }
+            }
             
             throw std::logic_error("not implemented");
         }
@@ -718,6 +745,10 @@ namespace {
         else if (value.type() == typeid(MJTomlDescribedFloat)) {
             auto flt_ptr = std::any_cast<MJTomlDescribedFloat>(&value);
             ss << flt_ptr->description;
+        }
+        else if (value.type() == typeid(MJTomlDateTime)) {
+            auto dt_ptr = std::any_cast<MJTomlDateTime>(&value);
+            ss << "\"" << dt_ptr->value << "\"";
         }
         return ss.str();
     }
