@@ -7,7 +7,7 @@
 
 #include "MJToml.hpp"
 
-#define DEBUG_MJTOML
+//#define DEBUG_MJTOML
 #ifdef DEBUG_MJTOML
 #include <cstdio>
 #define MJTOML_LOG(fmt, ...) fprintf(stdout, fmt, ##__VA_ARGS__)
